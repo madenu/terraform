@@ -161,25 +161,6 @@ func (n *NodeAbstractResourceInstance) SetOverride(override *configs.Override) {
 	n.override = override
 }
 
-// readDiff returns the planned change for a particular resource instance
-// object.
-func (n *NodeAbstractResourceInstance) readDiff(ctx EvalContext, providerSchema providers.ProviderSchema) (*plans.ResourceInstanceChange, error) {
-	changes := ctx.Changes()
-	addr := n.ResourceInstanceAddr()
-
-	schema := providerSchema.SchemaForResourceAddr(addr.Resource.Resource)
-	if schema.Body == nil {
-		// Should be caught during validation, so we don't bother with a pretty error here
-		return nil, fmt.Errorf("provider does not support resource type %q", addr.Resource.Resource.Type)
-	}
-
-	change := changes.GetResourceInstanceChange(addr, addrs.NotDeposed)
-
-	log.Printf("[TRACE] readDiff: Read %s change from plan for %s", change.Action, n.Addr)
-
-	return change, nil
-}
-
 func (n *NodeAbstractResourceInstance) checkPreventDestroy(change *plans.ResourceInstanceChange) tfdiags.Diagnostics {
 	if change == nil || n.Config == nil || n.Config.Managed == nil {
 		return nil
@@ -819,7 +800,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	}
 
 	// If we're importing and generating config, generate it now.
-	if n.Config == nil {
+	if n.Config == nil && n.generateConfigPath == "" {
 		// This shouldn't happen. A node that isn't generating config should
 		// have embedded config, and the rest of Terraform should enforce this.
 		// If, however, we didn't do things correctly the next line will panic,
